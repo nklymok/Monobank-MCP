@@ -104,12 +104,17 @@ async def get_statement(
     Rate limit: 1 request per 60 seconds.
     Max period: 31 days + 1 hour.
 
-    Rules: 
-    1. Fetch from default account (account_id = "0") unless user specified another account explicitly.
-    2. The amount of money is displayed in the smallest currency unit (kopiyka for UAH, cent for USD etc.). Convert to UAH/USD etc. accordingly, do not give user amounts in kopiyka.
-    
+    Rules:
+    1. Fetch from default account (account_id = "0") unless another account is specified.
+    2. Amounts are converted from the smallest currency unit (e.g., kopiyka, cent)
+       to the main unit and returned as decimals.
+    3. Transaction timestamps ("time") are converted from Unix timestamps to
+       ISO 8601 datetime strings (UTC).
+    4. Fields "id", "invoiceId", "counterEdrpou", and "counterIban" are omitted
+       from the returned results.
+
     Parameters:
-        account_id: Account identifier from the list of accounts, or "0" for the default account.
+        account_id: Account identifier from the list of accounts, or "0" for default.
         from_timestamp: Start of the statement period (Unix timestamp).
         to_timestamp: End of the statement period (Unix timestamp).
     """
@@ -130,8 +135,24 @@ async def get_statement(
 
     statement_item_list_validator = TypeAdapter(List[StatementItem])
     validated_items = statement_item_list_validator.validate_python(response.json())
+    items = [item.model_dump() for item in validated_items]
 
-    return [item.model_dump() for item in validated_items]
+    processed_items: list[dict] = []
+    for item in items:
+        t = datetime.utcfromtimestamp(item["time"])
+        item["time"] = t.strftime("%Y-%m-%dT%H:%M:%SZ")
+        for key in (
+            "amount",
+            "operation_amount",
+            "commission_rate",
+            "cashback_amount",
+            "balance",
+        ):
+            item[key] = item[key] / 100
+        for field in ("id", "invoice_id", "counter_edrpou", "counter_iban"):
+            item.pop(field, None)
+        processed_items.append(item)
+    return processed_items
 
 
 if __name__ == "__main__":
