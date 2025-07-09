@@ -1,6 +1,7 @@
 # Monobank MCP Server
 
 Monobank MCP Server exposes your Monobank personal account as Model Context Protocol (MCP) tools.
+> See [this repository](https://github.com/Aler1x/Monobank-MCP) by [@Aler1x](https://github.com/Aler1x) for Node.js/TypeScript implementation.
 
 ## Features
 
